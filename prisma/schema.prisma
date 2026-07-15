@@ -1,0 +1,36 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Category {
+  UNIVERSIDAD
+  TRABAJO
+  OTROS
+}
+
+enum Status {
+  PENDING
+  IN_PROGRESS
+  DONE
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  category    Category  @default(OTROS)
+  urgent      Boolean   @default(false)
+  dueDate     DateTime?
+  tools       String[]  @default([])
+  status      Status    @default(PENDING)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}

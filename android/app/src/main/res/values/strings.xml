@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mis Tareas</string>
+    <string name="title_activity_main">Mis Tareas</string>
+    <string name="package_name">uk.servergorazer.tareas</string>
+    <string name="custom_url_scheme">uk.servergorazer.tareas</string>
+</resources>
