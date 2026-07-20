@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+android
+src/generated
+.env
+.env.*
+npm-debug.log*
+*.md

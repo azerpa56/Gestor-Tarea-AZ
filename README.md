@@ -35,7 +35,7 @@ Esa URL solo es alcanzable **desde dentro de la red Docker de Coolify** (es deci
 
 El APK carga la app vía `server.url` en `capacitor.config.ts` (apunta a `https://tareas.servergorazer.uk` por defecto) — es decir, el APK es un WebView que muestra la app desplegada, no una copia estática. Por eso hace falta desplegar el proyecto Next.js en Coolify antes de generar el APK final, y ese despliegue es también el momento en que se crean las tablas (usando la URL interna, dentro de la misma red Docker):
 
-1. En Coolify, crea una nueva app a partir de este repo, con build command `npm run build` y start command `npm run start`.
+1. En Coolify, crea una nueva app a partir de este repo. El repo incluye un `Dockerfile`, así que Coolify lo detecta solo y construye con eso (build pack: Dockerfile) — no hace falta configurar build/start command manualmente.
 2. Configura las variables de entorno `DATABASE_URL` (la URL interna de arriba) y `GEMINI_API_KEY` en Coolify.
 3. Antes del primer arranque (o como comando post-deploy en Coolify), corre una vez: `npx prisma migrate deploy` — esto crea las tablas en la base de datos usando las migraciones. Si aún no existe ninguna migración en `prisma/migrations/` (este repo se subió sin conexión a la BD), genera la primera con `npx prisma migrate dev --name init` estando conectado a la BD (local con la URL pública, o directamente en el servidor) y sube esa carpeta al repo.
 4. Asigna el dominio `tareas.servergorazer.uk` (o el que prefieras) vía Traefik, igual que `lulu.servergorazer.uk`.
