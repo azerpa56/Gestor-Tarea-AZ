@@ -1,10 +1,10 @@
 # Mis Tareas
 
-App personal de gestión de tareas: categorías (Universidad / Trabajo / Otros), urgencia, herramientas necesarias, fecha en calendario, autocompletado por IA (Gemini) y dictado por voz. Un solo código sirve como app web (Next.js) y como APK Android (Capacitor).
+App personal de gestión de tareas: áreas personalizables (crea las tuyas, con color), urgencia, herramientas necesarias, fecha en calendario, estadísticas de cumplimiento por área, autocompletado por IA (Gemini) y dictado por voz. Un solo código sirve como app web (Next.js) y como APK Android (Capacitor / Ionic Appflow).
 
 ## Stack
 
-- Next.js 16 (App Router) + TypeScript + Tailwind CSS + shadcn/ui
+- Next.js 16 (App Router) + TypeScript + Tailwind CSS + shadcn/ui (Plus Jakarta Sans)
 - Prisma ORM + PostgreSQL (driver adapter `@prisma/adapter-pg`, requerido desde Prisma 7)
 - Google Gemini (`@google/generative-ai`) para clasificar tareas automáticamente
 - Web Speech API (navegador) + `@capacitor-community/speech-recognition` (APK) para dictado por voz
@@ -20,8 +20,10 @@ postgres://postgres:***@v4wwgw4sowcwow4cw4cckksc:5432/postgres
 
 Esa URL solo es alcanzable **desde dentro de la red Docker de Coolify** (es decir, desde la propia app cuando esté desplegada ahí) — no funciona para desarrollar en local desde esta máquina. Hay dos formas de trabajar:
 
-- **Sin exponer la BD (recomendado por seguridad):** desarrolla en local sin base de datos conectada (las páginas cargan igual, solo fallan las llamadas a `/api/tasks`) y deja que la migración se aplique al desplegar (ver siguiente sección).
+- **Sin exponer la BD (recomendado por seguridad):** desarrolla en local sin base de datos conectada (las páginas cargan igual, solo fallan las llamadas a `/api/tasks` y `/api/areas`) y deja que la migración se aplique al desplegar (ver siguiente sección).
 - **Exponiendo la BD temporalmente:** en el recurso PostgreSQL de Coolify, activa "Make it publicly available" para obtener una URL pública, pégala en `DATABASE_URL` en `.env`, y corre `npx prisma migrate dev --name init` desde aquí.
+
+Al arrancar sin áreas creadas todavía, `GET /api/areas` siembra automáticamente 3 áreas por defecto (Universidad, Trabajo, Otros) — desde ahí puedes crear, renombrar, recolorear o borrar áreas libremente en `/areas`.
 
 ## Desarrollo local
 
@@ -41,9 +43,20 @@ El APK carga la app vía `server.url` en `capacitor.config.ts` (apunta a `https:
 4. Asigna el dominio `tareas.servergorazer.uk` (o el que prefieras) vía Traefik, igual que `lulu.servergorazer.uk`.
 5. Si usas otro dominio, actualiza `server.url` en `capacitor.config.ts` antes de compilar el APK.
 
-## Generar el APK (requiere Android Studio)
+## Generar el APK con Ionic Appflow (recomendado, sin instalar nada local)
 
-Esta máquina no tiene Android Studio/SDK instalados, así que este paso debe hacerse desde una máquina que sí los tenga:
+El proyecto incluye `ionic.config.json` para que [Ionic Appflow](https://ionic.io/appflow) lo reconozca como app Capacitor y lo compile en la nube — no hace falta migrar la interfaz a componentes Ionic, Appflow compila cualquier proyecto Capacitor tal cual.
+
+1. Crea una cuenta/app en el [dashboard de Appflow](https://dashboard.ionicframework.com/) y conéctala a este repo de GitHub (`azerpa56/Gestor-Tarea-AZ`).
+2. En "Native builds", configura un build de tipo **Android** (podés generar tanto `.apk` de debug como `.aab`/`.apk` firmado si subís tu keystore).
+3. Lanza el build — Appflow instala dependencias, corre `npx cap sync android` y compila con su propio entorno Gradle en la nube.
+4. Descarga el `.apk` generado desde el dashboard de Appflow al terminar.
+
+Igual que con Android Studio local, esto sigue dependiendo de que la web ya esté desplegada en el dominio configurado en `server.url` (ver sección anterior) — el APK es un WebView apuntando a esa URL.
+
+### Alternativa: generar el APK con Android Studio local
+
+Si preferís compilarlo vos mismo en vez de usar Appflow:
 
 1. Instala [Android Studio](https://developer.android.com/studio) (incluye el SDK de Android).
 2. Con la web ya desplegada y `server.url` apuntando a ella, corre:
@@ -56,12 +69,18 @@ Esta máquina no tiene Android Studio/SDK instalados, así que este paso debe ha
 
 ## Estructura relevante
 
-- `prisma/schema.prisma` — modelo `Task` (categoría, urgencia, herramientas, fecha, estado)
+- `prisma/schema.prisma` — modelos `Area` (nombre, color, orden) y `Task` (relación a un área, urgencia, herramientas, fecha, estado)
 - `src/app/api/tasks/` — CRUD de tareas
-- `src/app/api/ai/parse-task/` — clasificación automática con Gemini
+- `src/app/api/areas/` — CRUD de áreas (con auto-siembra de 3 áreas por defecto)
+- `src/app/api/stats/` — cumplimiento de tareas por área
+- `src/app/api/ai/parse-task/` — clasificación automática con Gemini (elige entre las áreas existentes)
 - `src/lib/gemini.ts` — prompt y parseo de la sugerencia de IA
 - `src/lib/useVoiceInput.ts` — hook de dictado por voz (web y nativo)
-- `src/components/TaskForm.tsx` — formulario con autocompletar IA y micrófono
-- `src/app/page.tsx` — dashboard con filtros por categoría/urgencia
+- `src/components/TaskForm.tsx` — formulario con autocompletar IA, micrófono y creación rápida de áreas
+- `src/app/page.tsx` — dashboard con filtros por área/urgencia
 - `src/app/calendario/page.tsx` — vista de calendario con días marcados
+- `src/app/areas/page.tsx` — gestión de áreas (crear/renombrar/recolorear/eliminar)
+- `src/app/estadisticas/page.tsx` — cumplimiento general y por área
+- `src/components/Footer.tsx` — crédito Gorazer
 - `android/` — proyecto nativo generado por Capacitor
+- `ionic.config.json` — metadata para que Ionic Appflow reconozca el proyecto

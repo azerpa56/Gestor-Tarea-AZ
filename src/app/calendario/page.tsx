@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { TaskList } from "@/components/TaskList";
 import { TaskForm } from "@/components/TaskForm";
-import type { TaskModel as Task } from "@/generated/prisma/models";
+import type { TaskWithArea as Task } from "@/lib/types";
 
 function dateKey(date: Date) {
   return format(date, "yyyy-MM-dd");

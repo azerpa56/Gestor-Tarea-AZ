@@ -1,7 +1,7 @@
 "use client";
 
 import { TaskCard } from "@/components/TaskCard";
-import type { TaskModel as Task } from "@/generated/prisma/models";
+import type { TaskWithArea as Task } from "@/lib/types";
 
 export function TaskList({
   tasks,

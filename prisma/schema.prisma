@@ -10,23 +10,27 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Category {
-  UNIVERSIDAD
-  TRABAJO
-  OTROS
-}
-
 enum Status {
   PENDING
   IN_PROGRESS
   DONE
 }
 
+model Area {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#6d5ef5")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  tasks     Task[]
+}
+
 model Task {
   id          String    @id @default(cuid())
   title       String
   description String?
-  category    Category  @default(OTROS)
+  areaId      String
+  area        Area      @relation(fields: [areaId], references: [id])
   urgent      Boolean   @default(false)
   dueDate     DateTime?
   tools       String[]  @default([])

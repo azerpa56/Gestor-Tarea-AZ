@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CalendarIcon, Loader2, Mic, Sparkles, Square, X } from "lucide-react";
+import { CalendarIcon, Loader2, Mic, Plus, Sparkles, Square, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -30,14 +30,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useVoiceInput } from "@/lib/useVoiceInput";
-import type { Category, Status } from "@/generated/prisma/enums";
+import type { Status } from "@/generated/prisma/enums";
 import type { TaskModel as Task } from "@/generated/prisma/models";
-
-const CATEGORY_LABELS: Record<Category, string> = {
-  UNIVERSIDAD: "Universidad",
-  TRABAJO: "Trabajo",
-  OTROS: "Otros",
-};
+import type { AreaModel as Area } from "@/generated/prisma/models";
 
 const STATUS_LABELS: Record<Status, string> = {
   PENDING: "Pendiente",
@@ -45,10 +40,12 @@ const STATUS_LABELS: Record<Status, string> = {
   DONE: "Hecha",
 };
 
+const DEFAULT_NEW_AREA_COLOR = "#6d5ef5";
+
 type TaskFormValues = {
   title: string;
   description: string;
-  category: Category;
+  areaId: string;
   urgent: boolean;
   dueDate: Date | undefined;
   tools: string[];
@@ -58,7 +55,7 @@ type TaskFormValues = {
 const EMPTY_VALUES: TaskFormValues = {
   title: "",
   description: "",
-  category: "OTROS",
+  areaId: "",
   urgent: false,
   dueDate: undefined,
   tools: [],
@@ -69,7 +66,7 @@ function taskToValues(task: Task): TaskFormValues {
   return {
     title: task.title,
     description: task.description ?? "",
-    category: task.category,
+    areaId: task.areaId,
     urgent: task.urgent,
     dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
     tools: task.tools,
@@ -94,6 +91,18 @@ export function TaskForm({
   const [toolInput, setToolInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [newAreaOpen, setNewAreaOpen] = useState(false);
+  const [newAreaName, setNewAreaName] = useState("");
+  const [newAreaColor, setNewAreaColor] = useState(DEFAULT_NEW_AREA_COLOR);
+  const [creatingArea, setCreatingArea] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/areas")
+      .then((res) => res.json())
+      .then(setAreas)
+      .catch(() => toast.error("No se pudieron cargar las áreas"));
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -105,6 +114,13 @@ export function TaskForm({
     }
     setToolInput("");
   }, [open, task, defaultDueDate]);
+
+  useEffect(() => {
+    if (open && !task && !values.areaId && areas.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- default to the first available area once areas finish loading
+      setValues((v) => ({ ...v, areaId: areas[0].id }));
+    }
+  }, [open, task, areas, values.areaId]);
 
   const { start, stop, listening, supported } = useVoiceInput((transcript) => {
     setValues((v) => ({
@@ -130,7 +146,7 @@ export function TaskForm({
       setValues((v) => ({
         ...v,
         title: v.title || suggestion.title || v.title,
-        category: suggestion.category ?? v.category,
+        areaId: suggestion.areaId ?? v.areaId,
         urgent: suggestion.urgent ?? v.urgent,
         tools: suggestion.tools?.length ? suggestion.tools : v.tools,
         dueDate: suggestion.dueDate ? new Date(`${suggestion.dueDate}T00:00:00`) : v.dueDate,
@@ -140,6 +156,33 @@ export function TaskForm({
       toast.error("No se pudo obtener la sugerencia de IA");
     } finally {
       setAiLoading(false);
+    }
+  }
+
+  async function createArea() {
+    if (!newAreaName.trim()) {
+      toast.error("Ponle un nombre al área");
+      return;
+    }
+    setCreatingArea(true);
+    try {
+      const res = await fetch("/api/areas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newAreaName.trim(), color: newAreaColor }),
+      });
+      if (!res.ok) throw new Error("Create area failed");
+      const area: Area = await res.json();
+      setAreas((prev) => [...prev, area]);
+      setValues((v) => ({ ...v, areaId: area.id }));
+      setNewAreaName("");
+      setNewAreaColor(DEFAULT_NEW_AREA_COLOR);
+      setNewAreaOpen(false);
+      toast.success("Área creada");
+    } catch {
+      toast.error("No se pudo crear el área");
+    } finally {
+      setCreatingArea(false);
     }
   }
 
@@ -159,12 +202,16 @@ export function TaskForm({
       toast.error("El título es obligatorio");
       return;
     }
+    if (!values.areaId) {
+      toast.error("Elige un área");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         title: values.title,
         description: values.description || null,
-        category: values.category,
+        areaId: values.areaId,
         urgent: values.urgent,
         dueDate: values.dueDate ? values.dueDate.toISOString() : null,
         tools: values.tools,
@@ -249,24 +296,67 @@ export function TaskForm({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Categoría</Label>
-              <Select
-                value={values.category}
-                onValueChange={(value: Category | null) =>
-                  value && setValues((v) => ({ ...v, category: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Área</Label>
+              <div className="flex gap-1.5">
+                <Select
+                  value={values.areaId}
+                  onValueChange={(value: string | null) =>
+                    value && setValues((v) => ({ ...v, areaId: value }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Elige un área" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {areas.map((area) => (
+                      <SelectItem key={area.id} value={area.id}>
+                        <span
+                          className="inline-block size-2 rounded-full"
+                          style={{ backgroundColor: area.color }}
+                        />
+                        {area.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Popover open={newAreaOpen} onOpenChange={setNewAreaOpen}>
+                  <PopoverTrigger
+                    render={<Button type="button" variant="outline" size="icon" title="Nueva área" />}
+                  >
+                    <Plus className="size-4" />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-area-name">Nueva área</Label>
+                      <Input
+                        id="new-area-name"
+                        value={newAreaName}
+                        onChange={(e) => setNewAreaName(e.target.value)}
+                        placeholder="Ej: Gimnasio"
+                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={newAreaColor}
+                          onChange={(e) => setNewAreaColor(e.target.value)}
+                          className="h-8 w-10 cursor-pointer rounded-md border border-input bg-transparent"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="flex-1"
+                          onClick={createArea}
+                          disabled={creatingArea}
+                        >
+                          {creatingArea && <Loader2 className="mr-1 size-3.5 animate-spin" />}
+                          Crear
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             <div className="space-y-2">

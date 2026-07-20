@@ -7,9 +7,9 @@ import { Check, Pencil, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CategoryBadge } from "@/components/CategoryBadge";
+import { AreaBadge } from "@/components/AreaBadge";
 import { cn } from "@/lib/utils";
-import type { TaskModel as Task } from "@/generated/prisma/models";
+import type { TaskWithArea as Task } from "@/lib/types";
 
 export function TaskCard({
   task,
@@ -32,7 +32,7 @@ export function TaskCard({
           <div className="flex flex-wrap items-center gap-2">
             <h3 className={cn("font-medium", done && "line-through")}>{task.title}</h3>
             {task.urgent && !done && <Badge variant="destructive">Urgente</Badge>}
-            <CategoryBadge category={task.category} />
+            <AreaBadge name={task.area.name} color={task.area.color} />
           </div>
 
           {task.description && (

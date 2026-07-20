@@ -10,29 +10,30 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { TaskList } from "@/components/TaskList";
 import { TaskForm } from "@/components/TaskForm";
-import type { Category } from "@/generated/prisma/enums";
-import type { TaskModel as Task } from "@/generated/prisma/models";
-
-const CATEGORY_TABS: { value: Category | "ALL"; label: string }[] = [
-  { value: "ALL", label: "Todas" },
-  { value: "UNIVERSIDAD", label: "Universidad" },
-  { value: "TRABAJO", label: "Trabajo" },
-  { value: "OTROS", label: "Otros" },
-];
+import type { TaskWithArea as Task } from "@/lib/types";
+import type { AreaModel as Area } from "@/generated/prisma/models";
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
-  const [category, setCategory] = useState<Category | "ALL">("ALL");
+  const [areaId, setAreaId] = useState<string>("ALL");
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  useEffect(() => {
+    fetch("/api/areas")
+      .then((res) => res.json())
+      .then(setAreas)
+      .catch(() => toast.error("No se pudieron cargar las áreas"));
+  }, []);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (category !== "ALL") params.set("category", category);
+      if (areaId !== "ALL") params.set("areaId", areaId);
       if (urgentOnly) params.set("urgent", "true");
 
       const res = await fetch(`/api/tasks?${params.toString()}`);
@@ -43,7 +44,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [category, urgentOnly]);
+  }, [areaId, urgentOnly]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial + refetch on filter change
@@ -88,17 +89,22 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <Tabs value={category} onValueChange={(v) => setCategory(v as Category | "ALL")}>
-          <TabsList>
-            {CATEGORY_TABS.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value}>
-                {tab.label}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs value={areaId} onValueChange={(v) => v && setAreaId(v)} className="min-w-0">
+          <TabsList className="max-w-full justify-start overflow-x-auto">
+            <TabsTrigger value="ALL">Todas</TabsTrigger>
+            {areas.map((area) => (
+              <TabsTrigger key={area.id} value={area.id} className="gap-1.5">
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: area.color }}
+                />
+                {area.name}
               </TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
-        <Button onClick={openNewTask} size="sm" className="gap-1.5">
+        <Button onClick={openNewTask} size="sm" className="gap-1.5 self-start sm:self-auto">
           <Plus className="size-4" />
           Nueva
         </Button>
