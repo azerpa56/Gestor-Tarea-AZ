@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
+import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const denied = await requireSession();
+  if (denied) return denied;
+
   const areas = await prisma.area.findMany({
     orderBy: { order: "asc" },
     include: { tasks: { select: { status: true } } },

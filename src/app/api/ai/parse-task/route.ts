@@ -1,10 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/session";
 import { suggestTaskFields } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const denied = await requireSession();
+  if (denied) return denied;
+
   const body = await request.json();
   const text = typeof body.text === "string" ? body.text.trim() : "";
 

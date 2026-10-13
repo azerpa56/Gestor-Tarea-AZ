@@ -1,10 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Status } from "@/generated/prisma/enums";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const denied = await requireSession();
+  if (denied) return denied;
+
   const { searchParams } = request.nextUrl;
   const areaId = searchParams.get("areaId");
   const status = searchParams.get("status");
@@ -26,6 +30,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireSession();
+  if (denied) return denied;
+
   const body = await request.json();
   const { title, description, areaId, urgent, dueDate, tools, status } = body;
 

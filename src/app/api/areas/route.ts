@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,9 @@ const DEFAULT_AREAS = [
 ];
 
 export async function GET() {
+  const denied = await requireSession();
+  if (denied) return denied;
+
   const count = await prisma.area.count();
 
   if (count === 0) {
@@ -24,6 +28,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireSession();
+  if (denied) return denied;
+
   const body = await request.json();
   const { name, color } = body;
 
